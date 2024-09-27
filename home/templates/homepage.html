@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+
+{% block extra_styles %}
+<style>
+    body {
+        background-color: #1e1e1e;
+        color: #ffffff;
+        font-family: 'Arial', sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+
+    .centereddiv {
+        background-color: #1e1e1e;
+        color: #ffffff;
+        padding: 20px;
+        border-radius: 15px;
+        margin: 20px auto;
+        width: 50%;
+        text-align: left;
+        box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.5);
+    }
+
+    #niftydata {
+        margin-top: 20px;
+        font-size: 16px;
+    }
+
+    .index-header {
+        font-size: 24px;
+        font-weight: bold;
+        color: #90caf9;
+        text-align: center;
+        margin-bottom: 15px;
+    }
+
+    .data-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+        font-size: 16px;
+    }
+
+    .data-item {
+        padding: 10px;
+        background-color: #333333;
+        border-radius: 8px;
+        transition: transform 0.3s ease-in-out, background-color 0.3s ease;
+        cursor: pointer;
+    }
+
+    .data-item:hover {
+        transform: scale(1.05);
+        background-color: #444444;
+    }
+
+    .data-label {
+        font-weight: bold;
+        color: #90caf9;
+    }
+
+    .data-value {
+        color: #fbc02d;
+    }
+
+    .data-value.positive {
+        color: #00e676;
+    }
+
+    .data-value.negative {
+        color: #ff1744;
+    }
+
+    #search-stock {
+        margin: 20px 0;
+        padding: 10px;
+        width: 100%;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        background-color: #333;
+        color: #fff;
+    }
+
+    #stock-list {
+        margin-top: 20px;
+    }
+
+    .stock-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 2% auto;
+        width: 90%;
+    }
+
+    .stock-item {
+        background-color: #222;
+        padding: 15px;
+        width: 30%;
+        margin: 10px;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .stock-item:hover {
+        background-color: #444;
+    }
+
+    .stock-name {
+        font-size: 1.5em;
+        font-weight: bold;
+        color: #90caf9;
+    }
+
+    .stock-price {
+        color: #fbc02d;
+        font-size: 1.3em;
+    }
+
+    .stock-item.positive .stock-name,
+    .stock-item.positive .stock-price {
+        color: #66bb6a; /* Green for positive change */
+    }
+
+    .stock-item.negative .stock-name,
+    .stock-item.negative .stock-price {
+        color: #ef5350; /* Red for negative change */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Nifty Data Display -->
+<div class="centereddiv">
+    <div id="niftydata">
+        <div class="index-header">Loading Index Data...</div>
+    </div>
+</div>
+
+<!-- Stock Search and List -->
+<input type="text" id="search-stock" placeholder="Search for stocks...">
+
+<div id="stock-list" class="stock-container">
+   Loading all stocks...
+</div>
+
+<script>
+    const indexes = ['NIFTY 50', 'NIFTY MIDCAP 100', 'NIFTY SMALLCAP 100'];
+    let index_len = indexes.length;
+    let index = 0;
+
+    function formatNiftyData(data) {
+        const changeClass = data.change < 0 ? 'negative' : 'positive';
+        const percChangeClass = data.percChange < 0 ? 'negative' : 'positive';
+
+        return `
+            <div class="index-header">${data.indexName}</div>
+            <div class="data-grid">
+                <div class="data-item">
+                    <span class="data-label">Open:</span>
+                    <span class="data-value">${data.open}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">High:</span>
+                    <span class="data-value">${data.high}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Low:</span>
+                    <span class="data-value">${data.low}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Previous Close:</span>
+                    <span class="data-value">${data.previousClose}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Last Price:</span>
+                    <span class="data-value">${data.last}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Change:</span>
+                    <span class="data-value ${changeClass}">${data.change}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Perc Change:</span>
+                    <span class="data-value ${percChangeClass}">${data.percChange}%</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Volume Traded:</span>
+                    <span class="data-value">${data.totalTradedVolume.toLocaleString()}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Traded Value:</span>
+                    <span class="data-value">₹${data.totalTradedValue.toLocaleString()}</span>
+                </div>
+                <div class="data-item">
+                    <span class="data-label">Time:</span>
+                    <span class="data-value">${data.timeVal}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    function fetchnifty(index) {
+        const encodedIndex = encodeURIComponent(index);
+        const url = `/dashboard/indexdisplay/?index=${encodedIndex}`;
+        
+        fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            const formattedData = formatNiftyData(data);
+            document.getElementById('niftydata').innerHTML = formattedData;
+        })
+        .catch(error => {
+            console.error('Error fetching Nifty data:', error);
+            document.getElementById('niftydata').innerText = "Error fetching data";
+        });
+    }
+
+    function callindexes() {
+        index = index % index_len;
+        fetchnifty(indexes[index]);
+        index++;
+        setTimeout(callindexes, 15000);
+    }
+
+    function formatStockData(data) {
+        const changeClass = data.priceInfo.pChange >= 0 ? 'positive' : 'negative';
+        return `
+        <div class="stock-item ${changeClass}" onclick="window.open('/stock/${data.info.symbol}','_blank')">
+            <span class="stock-name">${data.info.companyName}</span>
+            <span class="stock-price">₹${data.priceInfo.lastPrice}</span>
+        </div>
+        `;
+    }
+
+    function fetchstockdetails() {
+        const url = `/dashboard/allstockdisplay/`;
+        fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            let ret = "";
+            for (const key in data) {
+                ret += formatStockData(data[key]);
+            }
+            document.getElementById("stock-list").innerHTML = ret;
+        })
+        .catch(error => {
+            console.error('Error fetching stock data:', error);
+            document.getElementById('stock-list').innerText = "Error fetching data";
+        });
+    }
+
+    window.onload = function() {
+        callindexes(); // Start fetching Nifty data
+        fetchstockdetails(); // Fetch stock data
+
+        // Refresh stock data every minute
+        setInterval(fetchstockdetails, 60000);
+    };
+</script>
+
+{% endblock %}

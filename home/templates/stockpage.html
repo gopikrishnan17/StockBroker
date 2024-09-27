@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block title %}{{symbol}}{% endblock %}
+
+{% block extra_styles %} 
+<style>
+    body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Roboto', sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+
+    .stock-container {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        margin: 2% auto;
+        width: 90%;
+    }
+
+    .stock-item {
+        background-color: #1f1f1f;
+        border-radius: 8px;
+        padding: 20px;
+        width: 100%;
+        margin: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease, background-color 0.3s ease;
+        text-align: center;
+    }
+
+    .stock-name {
+        color: #e6e6e6;
+        font-size: 1.5em;
+        margin-bottom: 15px;
+        transition: color 0.3s ease;
+    }
+
+    .stock-details {
+        font-size: 1.1em;
+        margin-bottom: 10px;
+    }
+
+    .positive {
+        color: #66bb6a;
+    }
+
+    .negative {
+        color: #ef5350;
+    }
+
+    .stock-item:hover {
+        transform: translateY(-10px);
+        background-color: #2a2a2a;
+    }
+
+    #chart-container {
+        background-color: #1f1f1f;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        margin: 20px auto;
+        width: 90%;
+    }
+
+    #stock-chart {
+        width: 100%;
+        height: 400px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<div class="stock-container" id="stockdisplay">
+    Fetching stock details...
+</div>
+
+<div id="chart-container">
+    <canvas id="stock-chart"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+    var encsymbol = encodeURIComponent('{{symbol}}');
+    var stockChart;  // Declare chart variable globally
+
+    // Function to format and display stock details
+    function formatData(data) {
+        const changeClass = data.priceInfo.pChange >= 0 ? 'positive' : 'negative';
+        return `
+        <div class="stock-item">
+            <div class="stock-name">${data.info.companyName} (${data.info.symbol})</div>
+            <div class="stock-details">Industry: ${data.info.industry}</div>
+            <div class="stock-details">Last Price: ₹${data.priceInfo.lastPrice}</div>
+            <div class="stock-details ${changeClass}">Change: ${data.priceInfo.change} (${data.priceInfo.pChange.toFixed(2)}%)</div>
+            <div class="stock-details">Open: ₹${data.priceInfo.open}</div>
+            <div class="stock-details">High: ₹${data.priceInfo.intraDayHighLow.max}</div>
+            <div class="stock-details">Low: ₹${data.priceInfo.intraDayHighLow.min}</div>
+            <div class="stock-details">Previous Close: ₹${data.priceInfo.previousClose}</div>
+            <div class="stock-details">52 Week High: ₹${data.priceInfo.weekHighLow.max} (${data.priceInfo.weekHighLow.maxDate})</div>
+            <div class="stock-details">52 Week Low: ₹${data.priceInfo.weekHighLow.min} (${data.priceInfo.weekHighLow.minDate})</div>
+            <div class="stock-details">VWAP: ₹${data.priceInfo.vwap}</div>
+        </div>
+        `;
+    }
+
+    // Function to fetch and display stock data every 15 seconds
+    function fetchstockdetails() {
+        const url = `/dashboard/stockreturn/?symbol=${encsymbol}`;
+        fetch(url)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            document.getElementById("stockdisplay").innerHTML = formatData(data);
+            renderChart(data.dates, data.close_price);
+        })
+        .catch(error => {
+            console.error('Error fetching data:', error);
+            document.getElementById('stockdisplay').innerText = "Error fetching data";
+        });
+    }
+
+    // Function to render chart using Chart.js
+    function renderChart(dates, prices) {
+        const ctx = document.getElementById('stock-chart').getContext('2d');
+        const formattedDates = dates.map(date => new Date(date).toLocaleDateString());
+
+        // Destroy previous chart if it exists
+        if (stockChart) {
+            stockChart.destroy();
+        }
+
+        // Create new chart instance
+        stockChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: formattedDates,
+                datasets: [{
+                    label: 'Closing Price',
+                    data: prices,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    tension: 0.3, // Curve the line
+                }]
+            },
+            options: {
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Date',
+                            color: '#e0e0e0',
+                        },
+                        ticks: {
+                            color: '#e0e0e0',
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Price (₹)',
+                            color: '#e0e0e0',
+                        },
+                        ticks: {
+                            color: '#e0e0e0',
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: '#e0e0e0'
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Call fetchstockdetails every 15 seconds
+    setInterval(fetchstockdetails, 15000);
+    window.onload = fetchstockdetails;
+</script>
+
+
+{% endblock %}
