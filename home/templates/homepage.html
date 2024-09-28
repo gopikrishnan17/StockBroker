@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block extra_styles %}
 <style>
@@ -72,15 +73,51 @@
     }
 
     #search-stock {
-        margin: 20px 0;
-        padding: 10px;
-        width: 100%;
-        border: none;
-        border-radius: 8px;
-        font-size: 16px;
-        background-color: #333;
-        color: #fff;
-    }
+            margin: 20px 0;
+            padding: 10px;
+            margin-left: 2%;
+            margin-right: 2%;
+            width: 96%;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            background-color: #333;
+            color: #fff;
+        }
+
+        #search-results {
+            margin: 20px 0;
+            margin-left: 2%;
+            margin-right: 2%;
+            width: 96%;
+            border-radius: 8px;
+            background-color: #333;
+        }
+
+        .search-result-item {
+            background-color: #444;
+            color: #fff;
+            padding: 10px;
+            margin: 5px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            font-size: 16px;
+        }
+
+        .search-result-item:hover {
+            background-color: #555;
+        }
+
+        .no-results {
+            color: #ff1744;
+            padding: 10px;
+            font-size: 16px;
+            text-align: center;
+        }
+
 
     #stock-list {
         margin-top: 20px;
@@ -145,6 +182,7 @@
 
 <!-- Stock Search and List -->
 <input type="text" id="search-stock" placeholder="Search for stocks...">
+<div id="search-results"></div>
 
 <div id="stock-list" class="stock-container">
    Loading all stocks...
@@ -154,6 +192,8 @@
     const indexes = ['NIFTY 50', 'NIFTY MIDCAP 100', 'NIFTY SMALLCAP 100'];
     let index_len = indexes.length;
     let index = 0;
+    const textFileUrl = "{% static 'home/nse_symbols_nifty50.txt' %}";
+    let allstocks = [];
 
     function formatNiftyData(data) {
         const changeClass = data.change < 0 ? 'negative' : 'positive';
@@ -236,29 +276,55 @@
 
     function formatStockData(data) {
         const changeClass = data.priceInfo.pChange >= 0 ? 'positive' : 'negative';
+        const encodedSymbol = encodeURIComponent(data.info.symbol);
         return `
-        <div class="stock-item ${changeClass}" onclick="window.open('/stock/${data.info.symbol}','_blank')">
+        <div class="stock-item ${changeClass}" onclick="window.open('/stock/${encodedSymbol}','_blank')">
             <span class="stock-name">${data.info.companyName}</span>
             <span class="stock-price">₹${data.priceInfo.lastPrice}</span>
         </div>
         `;
     }
 
-    function fetchstockdetails() {
+    // Function to get the CSRF token from cookies
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function fetchstockdetails(stockSymbolsArray) {
         const url = `/dashboard/allstockdisplay/`;
-        fetch(url)
+        const csrftoken = getCookie('csrftoken');  // Get CSRF token from cookies
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',  // Specify JSON format
+                'X-CSRFToken': csrftoken  // Add CSRF token to headers
+            },
+            body: JSON.stringify({ symbols: stockSymbolsArray })  // Convert array to JSON and send in body
+        })
         .then(response => {
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
-            return response.json();
+            return response.json();  // Parse the JSON response
         })
         .then(data => {
             let ret = "";
             for (const key in data) {
-                ret += formatStockData(data[key]);
+                ret += formatStockData(data[key]);  // Assuming formatStockData formats stock info
             }
-            document.getElementById("stock-list").innerHTML = ret;
+            document.getElementById("stock-list").innerHTML = ret;  // Display the formatted stock data
         })
         .catch(error => {
             console.error('Error fetching stock data:', error);
@@ -266,13 +332,51 @@
         });
     }
 
-    window.onload = function() {
-        callindexes(); // Start fetching Nifty data
-        fetchstockdetails(); // Fetch stock data
+    async function loadTextFile() {
+        const response = await fetch(textFileUrl);
+        const text = await response.text();
+        allstocks = text.split('\n');          
+        console.log(allstocks);                         
+    }
 
+    // Add event listener for stock search
+    function addStockSearchListener() {
+        const searchInput = document.getElementById('search-stock');
+        const searchResults = document.getElementById('search-results');
+
+        searchInput.addEventListener('input', function() {
+            const query = searchInput.value.toLowerCase();
+            searchResults.innerHTML = ''; // Clear previous results
+
+            if (query) {
+                // Filter allstocks based on the query
+                const matches = allstocks.filter(stock => stock.toLowerCase().includes(query));
+                
+                if (matches.length > 0) {
+                    matches.forEach(stock => {
+                        // Assuming `stock` is just the symbol; you can modify the display logic
+                        const resultItem = document.createElement('button');
+                        resultItem.className = 'search-result-item';
+                        resultItem.textContent = stock;
+                        resultItem.onclick = () => window.open(`/stock/${stock}`, '_blank');
+                        searchResults.appendChild(resultItem);
+                    });
+                } else {
+                    searchResults.innerHTML = '<div class="no-results">No matches found</div>';
+                }
+            }
+        });
+    }
+
+    window.onload = async function() {
+        await loadTextFile();
+        callindexes(); // Start fetching Nifty data
+        fetchstockdetails(allstocks); // Fetch stock data
+        addStockSearchListener(); // Add stock search functionality
         // Refresh stock data every minute
-        setInterval(fetchstockdetails, 60000);
+        setInterval(() => fetchstockdetails(allstocks), 60000);
     };
 </script>
+
 
 {% endblock %}

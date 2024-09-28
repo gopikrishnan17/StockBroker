@@ -27,4 +27,7 @@ urlpatterns = [
     path('stock/<symbol>', stockdisplay, name = 'stockdisplay'),
     path('dashboard/stockreturn/', stockreturn, name = 'stockreturn'),
     path('testpage', stockdisplay, name = 'stockdisplay'),
+    path("login/", login_page, name='login_page'),
+    path("register/", register_page, name='register_page'),
+    path("logout/", logout_page, name='logout_page'),
 ]
