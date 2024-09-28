@@ -33,3 +33,16 @@ def stockdata(symbol, years=1, months=0, days = 7):
         info = q['info']
         allData = {'close_price': close_price, 'dates': dates, 'priceInfo':priceInfo, 'info': info}
     return allData
+
+def getstockname(arr):
+    allData = {}
+    for symbol in arr:
+        try:
+            q = nse.stock_quote(symbol)
+        except:
+            pass
+
+        else:
+            name = q['info']['companyName']
+            allData[symbol] = name
+    return allData

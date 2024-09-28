@@ -1,6 +1,8 @@
 from django.shortcuts import render
 from logicfiles.nsedata import *
 from django.http import JsonResponse
+import json,html
+from urllib.parse import unquote
 
 # Create your views here.
 
@@ -11,7 +13,7 @@ def homepage(request):
 #api to return details of index
 def indexdisplay(request):
     if request.method == 'GET':
-        index = request.GET.get('index')
+        index = html.unescape(unquote(request.GET.get('index')))
         if index:
             currnifty = currniftystatus(index)
             return JsonResponse(currnifty, status = 200)
@@ -22,15 +24,21 @@ def indexdisplay(request):
     
 #api to return the details of all stocks listed in 'home/static/home/nse_symbols_nifty50.txt'
 def allstockdisplay(request):
-    with open('home/static/home/nse_symbols_nifty50.txt', 'r') as file:
-        data = {}
-        symbols = [line.strip() for line in file.readlines()]
-        for symbol in symbols:
-            ret = stockdata(symbol)
-            if ret:
-                data[symbol] = ret
-    # print(data)
-    return JsonResponse(data, status = 200)
+    if request.method == 'POST':
+        try:
+            # Parse the request body as JSON
+            body = json.loads(request.body)
+            stock_symbols = body.get('symbols', [])
+            stock_data = {}
+            for symbol in stock_symbols:
+                ret = stockdata(symbol)
+                if ret:
+                    stock_data[symbol] = ret
+            return JsonResponse(stock_data, status=200)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON data"}, status=400)
+    else:
+        return JsonResponse({"error": "Invalid request method"}, status=405)
 
 #loads the page for each stock
 def stockdisplay(request, symbol):
@@ -40,7 +48,7 @@ def stockdisplay(request, symbol):
 #api to return details of each stock
 def stockreturn(request):
     if request.method == 'GET':
-        symbol = request.GET.get('symbol')
+        symbol = html.unescape(unquote(request.GET.get('symbol')))
         print(symbol)
         if symbol:
             ret = stockdata(symbol)
@@ -54,3 +62,9 @@ def stockreturn(request):
         return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
+def getstocknames(request):
+    ret = {}
+    with open('home/static/home/nse_symbols_nifty50.txt', 'r') as file:
+        symbols = [line.strip() for line in file.readlines()]
+        ret = getstockname(symbols)
+    return ret
