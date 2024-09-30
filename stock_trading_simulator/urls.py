@@ -18,6 +18,7 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 from home.views import *
+from buystocks.views import *
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -30,4 +31,7 @@ urlpatterns = [
     path("login/", login_page, name='login_page'),
     path("register/", register_page, name='register_page'),
     path("logout/", logout_page, name='logout_page'),
+    path('funds/', fundspage, name = 'fundspage'),
+    path('api/add_funds/', add_funds, name = 'add_funds'),
+    path('api/withdraw_funds/', withdraw_funds, name = 'withdraw_funds'),
 ]

@@ -1,0 +1,233 @@
+{% extends 'home/base.html' %}
+
+{% block title %}Funds{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Dark theme styling */
+    body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Arial', sans-serif;
+    }
+
+    .container {
+        max-width: 800px;
+        margin: 40px auto;
+        padding: 20px;
+        border-radius: 10px;
+        background-color: #1e1e1e;
+        box-shadow: 0px 0px 20px rgba(0, 0, 0, 0.6);
+    }
+
+    h1, h2 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    .fund-display {
+        font-size: 2em;
+        text-align: center;
+        margin-bottom: 30px;
+        animation: fadeIn 2s ease;
+    }
+
+    .fund-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+
+    .fund-buttons button {
+        padding: 10px 20px;
+        background-color: #2196f3;
+        border: none;
+        border-radius: 5px;
+        color: white;
+        cursor: pointer;
+        font-size: 1em;
+        transition: background-color 0.3s;
+    }
+
+    .fund-buttons button:hover {
+        background-color: #1769aa;
+    }
+
+    /* Transactions table styling */
+    .transactions {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .transactions th, .transactions td {
+        padding: 10px;
+        border-bottom: 1px solid #333;
+    }
+
+    .transactions th {
+        text-align: left;
+        font-weight: bold;
+    }
+
+    .transactions tr:hover {
+        background-color: #333;
+    }
+
+    /* Basic fade-in animation */
+    @keyframes fadeIn {
+        0% {
+            opacity: 0;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Your Funds</h1>
+
+    <!-- Display current balance -->
+    <div class="fund-display">
+        Current Balance: ₹<span id="current-balance"></span>
+    </div>
+
+    <!-- Add and withdraw buttons -->
+    <div class="fund-buttons">
+        <button onclick="addFunds()">Add Funds</button>
+        <button onclick="withdrawFunds()">Withdraw Funds</button>
+    </div>
+
+    <!-- Previous transactions -->
+    <h2>Previous Transactions</h2>
+    <table class="transactions">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Amount</th>
+            </tr>
+        </thead>
+        <tbody id="transaction-list">
+            <!-- Transactions will be populated here via JavaScript -->
+        </tbody>
+    </table>
+</div>
+
+<script>
+    // Initialize balance and transaction data (replace with dynamic data)
+    let currentBalance = parseFloat('{{ fund.balance|default_if_none:"0.00" }}');
+    let arr = '{{ transactions|safe|escapejs }}';
+    console.log(arr, typeof arr)
+    let transactions = JSON.parse(arr);
+    // Function to display current balance
+    function displayBalance() {
+        document.getElementById('current-balance').innerText = currentBalance.toFixed(2);
+    }
+
+    // Function to populate the transaction list
+    function displayTransactions() {
+        let transactionList = document.getElementById('transaction-list');
+        transactionList.innerHTML = '';  // Clear the current list
+
+        if (transactions.length === 0) {
+            transactionList.innerHTML = '<tr><td colspan="3" style="text-align:center;">No transactions yet</td></tr>';
+        } else {
+            transactions.forEach(transaction => {
+                let row = `<tr>
+                    <td>${transaction.transaction_date} UTC</td>
+                    <td>${transaction.transaction_type}</td>
+                    <td>₹${transaction.amount.toFixed(2)}</td>
+                </tr>`;
+                transactionList.innerHTML += row;
+                console.log(row)
+            });
+        }
+    }
+
+    // Add funds (implementation with API call)
+function addFunds() {
+    let amount = prompt("Enter amount to add:");
+    if (amount) {
+        amount = parseFloat(amount);
+        if (!isNaN(amount) && amount > 0) {
+            fetch('/api/add_funds/', {  // Adjust the URL to your API endpoint
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'  // Include CSRF token if using Django
+                },
+                body: JSON.stringify({ amount: amount })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errorData => { throw new Error(errorData.error || 'Unknown error'); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.message === 'Success') {
+                    location.reload();  // Reload the page immediately on success
+                } else {
+                    alert(data.message || "Error adding funds.");
+                }
+            })
+            .catch(error => {
+                console.error('There was a problem with the fetch operation:', error);
+                alert("An error occurred: " + error.message);
+            });
+        } else {
+            alert("Invalid amount.");
+        }
+    }
+}
+
+
+function withdrawFunds() {
+    let amount = prompt("Enter amount to withdraw:");
+    if (amount) {
+        amount = parseFloat(amount);
+        if (!isNaN(amount) && amount > 0) {
+            fetch('/api/withdraw_funds/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'  // Include CSRF token
+                },
+                body: JSON.stringify({ amount: amount })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => { 
+                        throw new Error(text); // Log the raw HTML in case of an error
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.message === 'Success') {
+                    location.reload();  // Reload the page on success
+                } else {
+                    alert(data.message || "Error withdrawing funds.");
+                }
+            })
+            .catch(error => {
+                console.error('There was a problem with the fetch operation:', error);
+                alert("An error occurred: " + error.message);
+            });
+        } else {
+            alert("Invalid amount.");
+        }
+    }
+}
+
+
+    
+    // Initial display
+    displayBalance();
+    displayTransactions();
+</script>
+{% endblock %}
