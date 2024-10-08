@@ -102,7 +102,6 @@ def stockdisplay(request, symbol):
 def stockreturn(request):
     if request.method == 'GET':
         symbol = html.unescape(unquote(request.GET.get('symbol')))
-        print(symbol)
         if symbol:
             ret = stockdata(symbol)
             if ret:

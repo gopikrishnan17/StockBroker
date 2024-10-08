@@ -1,0 +1,129 @@
+{% extends 'home/base.html' %}
+
+{% block title %}Orders{% endblock %}
+
+{% block extra_styles %}
+<style>
+    body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Roboto', sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+
+    .orders-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 90%;
+        margin: 2% auto;
+    }
+
+    .order-item {
+        background-color: #1f1f1f;
+        border-radius: 8px;
+        padding: 20px;
+        width: 100%;
+        margin: 10px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease, background-color 0.3s ease;
+    }
+
+    .order-item:hover {
+        transform: translateY(-10px);
+        background-color: #2a2a2a;
+    }
+
+    .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .order-type {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: #66bb6a;
+    }
+
+    .order-type.sell {
+        color: #ef5350;
+    }
+
+    .order-details {
+        font-size: 1.1em;
+        margin-bottom: 10px;
+    }
+
+    .cancel-btn {
+        background-color: #ef5350;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .cancel-btn:hover {
+        background-color: #d32f2f;
+    }
+
+    .no-orders {
+        font-size: 1.5em;
+        color: #888;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="orders-container">
+    {% if orders %}
+        {% for order in orders %}
+            <div class="order-item">
+                <div class="order-header">
+                    <div class="order-type {% if order.order_type == 'sell' %}sell{% endif %}">
+                        {{ order.order_type|title }} Order
+                    </div>
+                    <button class="cancel-btn" onclick="cancelOrder('{{ order.id }}')">Cancel Order</button>
+                </div>
+                <div class="order-details">Stock: {{ order.stock.symbol }} - {{ order.stock.name }}</div>
+                <div class="order-details">Quantity: {{ order.quantity }}</div>
+                <div class="order-details">Price at Execution: ₹{{ order.price_at_execution }}</div>
+                <div class="order-details">Order Date: {{ order.order_date|date:"d M, Y H:i" }}</div>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="no-orders">No Active Orders</div>
+    {% endif %}
+</div>
+
+<script>
+    function cancelOrder(orderId) {
+        if (confirm('Are you sure you want to cancel this order?')) {
+            fetch(`/api/cancel_order/${orderId}/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Order canceled successfully.');
+                    location.reload();
+                } else {
+                    alert('Failed to cancel order.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while canceling the order.');
+            });
+        }
+    }
+</script>
+{% endblock %}

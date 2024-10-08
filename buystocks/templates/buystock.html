@@ -1,0 +1,155 @@
+{% extends 'home/base.html' %}
+
+{% block title %}Buy {{symbol}}{% endblock %}
+
+{% block extra_styles %}
+<style>
+    body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Roboto', sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+
+    .buy-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin: 5% auto;
+        width: 90%;
+        max-width: 500px;
+        background-color: #1f1f1f;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+        transition: transform 0.3s ease, background-color 0.3s ease;
+    }
+
+    .buy-container:hover {
+        transform: scale(1.05);
+        background-color: #2a2a2a;
+    }
+
+    h2 {
+        color: #e0e0e0;
+        margin-bottom: 20px;
+    }
+
+    label {
+        color: #e0e0e0;
+        margin-bottom: 10px;
+        font-size: 1.1em;
+        display: block;
+    }
+
+    input[type="number"] {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        border: none;
+        background-color: #1f1f1f;
+        color: #e0e0e0;
+        font-size: 1.1em;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transition: background-color 0.3s ease;
+    }
+
+    input[type="number"]:focus {
+        background-color: #2a2a2a;
+        outline: none;
+    }
+
+    .submit-btn {
+        padding: 12px 20px;
+        width: 100%;
+        background-color: #66bb6a;
+        border: none;
+        border-radius: 8px;
+        color: #fff;
+        font-size: 1.2em;
+        cursor: pointer;
+        transition: background-color 0.3s ease, transform 0.3s ease;
+    }
+
+    .submit-btn:hover {
+        background-color: #57a35c;
+        transform: translateY(-5px);
+    }
+
+    .error-message {
+        color: #ef5350;
+        margin-bottom: 20px;
+        font-size: 1em;
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="buy-container">
+    <h2>Buy {{symbol}}</h2>
+    <form id="buyOrderForm">
+        <label for="quantity">Quantity</label>
+        <input type="number" id="quantity" name="quantity" placeholder="Enter quantity" min="1" required>
+        
+        <label for="price">Price per Share (₹)</label>
+        <input type="number" id="price" name="price" placeholder="Enter price" step="0.01" min="0.01" required>
+
+        <div class="error-message" id="errorMessage">Not enough funds to place this order.</div>
+        
+        <button type="submit" class="submit-btn">Submit Order</button>
+    </form>
+</div>
+
+<script>
+
+    document.getElementById("buyOrderForm").addEventListener("submit", function(event) {
+        event.preventDefault();
+
+        const availableFunds = parseFloat('{{ available_funds }}');
+        const quantity = parseFloat(document.getElementById("quantity").value);
+        const price = parseFloat(document.getElementById("price").value);
+        const totalCost = quantity * price;
+        // Check if user has enough funds
+        console.log(totalCost, availableFunds)
+        if (totalCost > availableFunds) {
+            document.getElementById("errorMessage").style.display = 'block';
+            return;
+        } else {
+            document.getElementById("errorMessage").style.display = 'none';
+        }
+
+        // If funds are sufficient, send POST request
+        const url = `/api/buystock/`;
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}',
+            },
+            body: JSON.stringify({
+                symbol: '{{symbol}}',
+                quantity: quantity,
+                price: price
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message) {
+                alert('Order placed successfully!');
+                window.location.href = `/orders/`;
+            } else {
+                alert('Error placing the order. Please try again.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Failed to place order. Please try again later.');
+        });
+    });
+
+</script>
+{% endblock %}
