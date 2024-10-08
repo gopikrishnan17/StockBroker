@@ -33,6 +33,7 @@ class StockOrder(models.Model):
     quantity = models.IntegerField()
     price_at_execution = models.DecimalField(max_digits=10, decimal_places=2)
     order_date = models.DateTimeField(default=timezone.now)
+    executed = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.order_type.capitalize()} {self.quantity} of {self.stock.symbol} by {self.user.username}"

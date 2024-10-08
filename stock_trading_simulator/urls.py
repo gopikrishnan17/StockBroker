@@ -34,4 +34,9 @@ urlpatterns = [
     path('funds/', fundspage, name = 'fundspage'),
     path('api/add_funds/', add_funds, name = 'add_funds'),
     path('api/withdraw_funds/', withdraw_funds, name = 'withdraw_funds'),
+    path('stock/<symbol>/buy/', buyorderpage, name = 'buyorderpage'),
+    path('api/buystock/', placebuyorder, name = 'placebuyorder'),
+    path('orders/', displayorders, name='displayorders'),
+    path('api/cancel_order/<int:order_id>/', cancel_order, name='cancel_order'),
+    path('portfolio/', displayportfolio, name = 'displayportfolio'),
 ]

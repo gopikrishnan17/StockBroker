@@ -8,6 +8,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from .models import *
 from datetime import datetime
+from django.views.decorators.http import require_POST
 
 
 @login_required(login_url='/login/')
@@ -112,3 +113,73 @@ def withdraw_funds(request):
             return JsonResponse({"error": "Invalid JSON data"}, status=400)
     else:
         return JsonResponse({"error": "Invalid request method"}, status=405)
+
+
+def buyorderpage(request, symbol):
+    user = request.user
+    fund, created = Funds.objects.get_or_create(user=user, defaults={'balance': 0.00})
+    context = {'symbol': symbol, 'available_funds': fund.balance}
+    return render(request, 'buystock.html', context = context)
+
+def placebuyorder(request):
+    if request.method == "POST":
+        try:
+            user = request.user
+            body = json.loads(request.body)
+            price = body.get('price')
+            symbol = body.get('symbol','')
+            quantity = body.get('quantity')
+            fund, created = Funds.objects.get_or_create(user=user, defaults={'balance': 0.00})
+            if fund.balance >= price*quantity:
+                stock, created = Stock.objects.get_or_create(symbol = symbol, defaults={'symbol': symbol, 'name': symbol, 'current_price': 0})
+                print(symbol)
+                order = StockOrder.objects.create(
+                    user = user,
+                    stock = stock,
+                    order_type = 'buy',
+                    quantity = quantity,
+                    price_at_execution = price,
+
+                )
+                order.save()
+                fund.balance = float(fund.balance) - price*quantity
+                fund.save()
+                return JsonResponse(data={'message': 'Success'}, status=200)
+            else:
+                return JsonResponse({"error": "Insufficient funds"}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON data"}, status=400)
+    else:
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+def displayorders(request):
+    user = request.user
+    allorders = StockOrder.objects.filter(user = user, executed = False).order_by('-order_date')
+    context = {'orders': allorders}
+    return render(request, 'displayorders.html', context = context)
+
+@require_POST
+def cancel_order(request, order_id):
+    try:
+        # Ensure the order exists and belongs to the user
+        user = request.user
+        order = get_object_or_404(StockOrder, id=int(order_id), user=request.user)
+        fund, created = Funds.objects.get_or_create(user=user, defaults={'balance': 0.00})
+        price = order.price_at_execution
+        quantity = order.quantity
+        fund.balance = fund.balance + price*quantity
+        fund.save()
+        # Delete the order
+        order.delete()
+
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+    
+def displayportfolio(request):
+    user = request.user
+    portfolio = Portfolio.objects.get(user = user)
+    portfolioStocks = PortfolioStock.objects.filter(portfolio = portfolio)
+    allorders = StockOrder.objects.filter(user = user, executed = True).order_by('-order_date')
+    context = {'stocks': portfolioStocks}
+    return render(request, 'portfolio.html', context = context)
