@@ -1,0 +1,201 @@
+{% extends 'home/base.html' %}
+
+{% block title %}Sell Stock{% endblock %}
+
+{% block extra_styles %}
+<style>
+    body {
+        background-color: #121212;
+        color: #e0e0e0;
+        font-family: 'Roboto', sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+
+    .sell-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 50%;
+        margin: 2% auto;
+        padding: 20px;
+        background-color: #1f1f1f;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        transition: transform 0.3s ease;
+    }
+
+    .sell-container:hover {
+        transform: translateY(-10px);
+    }
+
+    .sell-header {
+        font-size: 1.5em;
+        font-weight: bold;
+        margin-bottom: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+        width: 100%;
+    }
+
+    .form-group label {
+        font-size: 1.2em;
+        margin-bottom: 5px;
+        display: block;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 10px;
+        font-size: 1.1em;
+        background-color: #2a2a2a;
+        border: none;
+        border-radius: 5px;
+        color: #e0e0e0;
+        transition: background-color 0.3s ease;
+    }
+
+    .form-group input:focus {
+        background-color: #3a3a3a;
+        outline: none;
+    }
+
+    .profit-loss {
+        font-size: 1.2em;
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    .profit-loss.green {
+        color: #66bb6a;
+    }
+
+    .profit-loss.red {
+        color: #ef5350;
+    }
+
+    .sell-btn {
+        background-color: #66bb6a;
+        color: white;
+        padding: 15px 30px;
+        font-size: 1.2em;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+    }
+
+    .sell-btn:disabled {
+        background-color: #555;
+        cursor: not-allowed;
+    }
+
+    .sell-btn:hover:not(:disabled) {
+        background-color: #57a05b;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="sell-container">
+    <div class="sell-header">Sell Stock: {{ symbol }}</div>
+    
+    <div class="form-group">
+        <label for="sellPrice">Sell Price (₹)</label>
+        <input type="number" id="sellPrice" placeholder="Enter sell price" oninput="calculateProfitLoss()">
+    </div>
+    
+    <div class="form-group">
+        <label for="sellQuantity">Sell Quantity</label>
+        <input type="number" id="sellQuantity" placeholder="Enter quantity (max: {{ quantity }})" max="{{ quantity }}" oninput="checkQuantity()">
+        <small id="quantityError" style="display:none;color:red;">Quantity exceeds available stocks</small>
+    </div>
+
+    <div id="profitLoss" class="profit-loss"></div>
+    
+    <button id="sellBtn" class="sell-btn" disabled onclick="submitSell()">Sell</button>
+</div>
+
+<script>
+    const avgPrice = parseFloat('{{ avgprice }}');
+    const availableQuantity = parseInt('{{ quantity }}');
+    
+    function calculateProfitLoss() {
+        const sellPriceInput = document.getElementById('sellPrice').value;
+        const sellPrice = parseFloat(sellPriceInput);
+
+        if (isNaN(sellPrice) || sellPrice <= 0) {
+            document.getElementById('profitLoss').innerHTML = '';  // Clear output when input is invalid
+            return;
+        }
+
+        const profitLossPercent = ((sellPrice - avgPrice) / avgPrice) * 100;
+        const profitLossElem = document.getElementById('profitLoss');
+        console.log(avgPrice)
+
+        if (!isNaN(profitLossPercent)) {
+            if (profitLossPercent >= 0) {
+                profitLossElem.innerHTML = `Profit: +${profitLossPercent.toFixed(2)}%`;
+                profitLossElem.className = 'profit-loss green';
+            } else {
+                profitLossElem.innerHTML = `Loss: ${profitLossPercent.toFixed(2)}%`;
+                profitLossElem.className = 'profit-loss red';
+            }
+        } else {
+            profitLossElem.innerHTML = '';
+        }
+    }
+
+    function checkQuantity() {
+        const sellQuantity = parseInt(document.getElementById('sellQuantity').value);
+        const sellBtn = document.getElementById('sellBtn');
+        const quantityError = document.getElementById('quantityError');
+
+        if (isNaN(sellQuantity) || sellQuantity <= 0) {
+            sellBtn.disabled = true;
+            return;
+        }
+
+        if (sellQuantity > availableQuantity) {
+            sellBtn.disabled = true;
+            quantityError.style.display = 'block';
+        } else {
+            sellBtn.disabled = false;
+            quantityError.style.display = 'none';
+        }
+    }
+
+    function submitSell() {
+        const sellPrice = document.getElementById('sellPrice').value;
+        const sellQuantity = document.getElementById('sellQuantity').value;
+        // Check if valid input before submitting
+        if (sellPrice && sellQuantity && sellQuantity <= availableQuantity) {
+            // API call to execute the sell operation
+            fetch('/api/sell/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({
+                    symbol: '{{ symbol }}',
+                    sell_price: sellPrice,
+                    quantity: sellQuantity
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert('Sell order placed successfully');
+                // Redirect or refresh the page after successful sell
+                window.location.href = '/orders'; // Adjust the redirect URL as needed
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Sell order failed');
+            });
+        }
+    }
+</script>
+{% endblock %}

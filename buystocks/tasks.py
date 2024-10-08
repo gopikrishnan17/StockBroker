@@ -14,8 +14,8 @@ def check_and_execute_orders():
     It runs only between 9:00 AM and 4:00 PM IST.
     """
     current_time_ist = timezone.now().astimezone(IST).time()  # Convert current time to IST
-    market_open = timezone.datetime.strptime('08:00', '%H:%M').time()
-    market_close = timezone.datetime.strptime('23:50', '%H:%M').time()
+    market_open = timezone.datetime.strptime('09:00', '%H:%M').time()
+    market_close = timezone.datetime.strptime('16:00', '%H:%M').time()
     # print("tasks")
 
     if market_open <= current_time_ist <= market_close:
@@ -58,14 +58,17 @@ def execute_sell_order(order):
     portfolio = Portfolio.objects.get(user = user)
     stock = order.stock
     orderQuantity = order.quantity
-    orderPrice = order.price_at_execution
+    orderPrice = float(order.price_at_execution)
     portfolioStock = PortfolioStock.objects.get(portfolio = portfolio, stock = stock)
-    portQuantity, portPrice = portfolioStock.quantity, portfolioStock.average_price
-    portfolioStock.average_price = ((portPrice*portQuantity)-(orderQuantity*orderPrice))/(portQuantity - orderQuantity)
-    portfolioStock.quantity = portQuantity - orderQuantity
-    portfolioStock.save()
+    portQuantity, portPrice = portfolioStock.quantity, float(portfolioStock.average_price)
+    if portQuantity!=orderQuantity:
+        portfolioStock.average_price = ((portPrice*portQuantity)-(orderQuantity*orderPrice))/(portQuantity - orderQuantity)
+        portfolioStock.quantity = portQuantity - orderQuantity
+        portfolioStock.save()
+    else:
+        portfolioStock.delete()
     fund = Funds.objects.get(user = user)
-    fund.balance += orderQuantity*orderPrice
+    fund.balance = float(fund.balance) + orderQuantity*orderPrice
     fund.save()
 
 def get_current_stock_price(symbol):

@@ -39,4 +39,6 @@ urlpatterns = [
     path('orders/', displayorders, name='displayorders'),
     path('api/cancel_order/<int:order_id>/', cancel_order, name='cancel_order'),
     path('portfolio/', displayportfolio, name = 'displayportfolio'),
+    path('portfolio/<symbol>/sell/', sellorderpage, name = 'sellorderpage'),
+    path('api/sell/', placesellorder, name = 'placesellorder'),
 ]

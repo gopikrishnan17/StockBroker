@@ -132,7 +132,6 @@ def placebuyorder(request):
             fund, created = Funds.objects.get_or_create(user=user, defaults={'balance': 0.00})
             if fund.balance >= price*quantity:
                 stock, created = Stock.objects.get_or_create(symbol = symbol, defaults={'symbol': symbol, 'name': symbol, 'current_price': 0})
-                print(symbol)
                 order = StockOrder.objects.create(
                     user = user,
                     stock = stock,
@@ -178,8 +177,44 @@ def cancel_order(request, order_id):
     
 def displayportfolio(request):
     user = request.user
-    portfolio = Portfolio.objects.get(user = user)
+    portfolio, created = Portfolio.objects.get_or_create(user = user, defaults={'user': user})
     portfolioStocks = PortfolioStock.objects.filter(portfolio = portfolio)
-    allorders = StockOrder.objects.filter(user = user, executed = True).order_by('-order_date')
     context = {'stocks': portfolioStocks}
     return render(request, 'portfolio.html', context = context)
+
+def sellorderpage(request, symbol):
+    user = request.user
+    quantity = int(request.GET.get('quantity',0))
+    avgprice = float(request.GET.get('avgprice', 0))
+    context = {'quantity': quantity, 'avgprice': avgprice, 'symbol': symbol}
+    return render(request, 'sellstock.html', context = context)
+
+def placesellorder(request):
+    if request.method == "POST":
+        try:
+            user = request.user
+            body = json.loads(request.body)
+            price = float(body.get('sell_price'))
+            symbol = body.get('symbol')
+            quantity = int(body.get('quantity'))
+            print(price, symbol, quantity)
+            portfolio = Portfolio.objects.get(user = user)
+            stock = Stock.objects.get(symbol = symbol)
+            portfolioStock = PortfolioStock.objects.get(portfolio = portfolio, stock = stock)
+            if portfolioStock.quantity >= quantity:
+                order = StockOrder.objects.create(
+                    user = user,
+                    stock = stock,
+                    order_type = 'sell',
+                    quantity = quantity,
+                    price_at_execution = price,
+
+                )
+                order.save()
+                return JsonResponse(data={'message': 'Success'}, status=200)
+            else:
+                return JsonResponse({"error": "Insufficient number of stocks"}, status=400)
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "Invalid JSON data"}, status=400)
+    else:
+        return JsonResponse({"error": "Invalid request method"}, status=405)

@@ -104,7 +104,7 @@
             </div>
         {% endfor %}
     {% else %}
-        <div class="no-orders">You have not bought any stocks yet</div>
+        <div class="no-orders">No Stocks in Portfolio</div>
     {% endif %}
 </div>
 
@@ -115,24 +115,9 @@
     }
 
     function sellStock(symbol, quantity, averagePrice) {
-        fetch('/api/sell/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': '{{ csrf_token }}',
-            },
-            body: JSON.stringify({
-                symbol: symbol,
-                quantity: quantity,
-                price: averagePrice
-            })
-        }).then(response => response.json())
-          .then(data => {
-              console.log('Sell API response:', data);
-              // Add any further success actions, like refreshing the page or showing a message
-          }).catch(error => {
-              console.error('Error with Sell API:', error);
-          });
+    const url = `${symbol}/sell/?quantity=${quantity}&avgprice=${averagePrice}`;
+    window.open(url, '_blank');
     }
+
 </script>
 {% endblock %}
